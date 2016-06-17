@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+ xmlns:context="http://www.springframework.org/schema/context"
+ xmlns:p="http://www.springframework.org/schema/p" 
+ xmlns:batch="http://www.springframework.org/schema/batch"
+ xmlns:mvc="http://www.springframework.org/schema/mvc" 
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+http://www.springframework.org/schema/context
+http://www.springframework.org/schema/context/spring-context-4.0.xsd
+http://www.springframework.org/schema/mvc
+http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd
+http://www.springframework.org/schema/batch 
+http://www.springframework.org/schema/batch/spring-batch-2.0.xsd">
+
+ <import resource="applicationContext.xml"/>
+ <import resource="spring-config.xml"/>
+ 
+ <bean id="customer" class="com.beingjavaguys.domain.Customer" scope="prototype"></bean>
+ 
+ <bean id="cvsItemReader" class="org.springframework.batch.item.file.FlatFileItemReader">
+  <!-- Read a csv file -->
+  <property name="resource" value="classpath:csv/employee.csv" />
+  <property name="lineMapper">
+   <bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+     <!-- split it -->
+     <property name="lineTokenizer">
+         <bean class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+       <property name="names" value="empid,firstname,lastname,birthdate,salary" />
+     </bean>
+     </property>
+     <property name="fieldSetMapper">   
+      <!-- map to an object -->
+      <bean class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+     <property name="prototypeBeanName" value="customer" />
+      </bean>   
+     </property>
+     </bean>
+    </property>
+     </bean>
+  
+  <bean id="databaseItemWriter" class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+  <property name="dataSource" ref="dataSource" />
+  <property name="sql">
+    <value>
+            <![CDATA[        
+              insert into Customer(EMPLOYEE_ID,FIRSTNAME,LASTNAME,BIRTDATE,SALARY) values (:id,:firstName,:lastName,:bdate,:salary)
+             ]]>
+    </value>
+  </property>
+  <!-- It will take care matching between object property and sql name parameter -->
+  <property name="itemSqlParameterSourceProvider">
+   <bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+  </property>
+    </bean>
+    
+    <batch:job id="simpleDojJob" job-repository="jobRepository" parent="simpleJob">
+     <batch:step id="step1">
+      <batch:tasklet transaction-manager="transactionManager">
+       <batch:chunk reader="cvsItemReader" writer="databaseItemWriter" commit-interval="2"/>
+      </batch:tasklet>
+     </batch:step>
+    </batch:job>   
+</beans>
